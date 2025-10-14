@@ -22,31 +22,60 @@ class Simulator:
     # -------------------------------------------------
     #  Simulation control
     # -------------------------------------------------
+    import math
+
     def start_simulation(self, start_id, mode="max_stars"):
-        """
-        Starts the simulation from a given star.
-        mode can be 'max_stars' or 'optimal_route'.
-        """
-        start_star = self.graph.get_star(start_id)
-        if not start_star:
-            self.log(f"Start star '{start_id}' not found.")
-            return
+        self.logs.append(f"Simulation started from {self.graph.get_star(start_id).name}.")
 
-        self.donkey.current_star = start_star
-        self.visited_stars.append(start_star.id)
-        self.running = True
-        self.log(f"Simulation started from {start_star.name}.")
+        # ------------------------------------------------
+        # Ejecutamos el algoritmo desde la clase Graph
+        # ------------------------------------------------
+        try:
+            dist, pred = self.graph.bellman_ford(start_id)
+        except Exception:
+            dist, pred, _ = self.graph.dijkstra_simple(start_id, target_id=None)
 
-        # Determine route based on mode
-        if mode == "max_stars":
-            self.calculate_route_max_stars()
-        elif mode == "optimal_route":
-            self.calculate_route_optimal()
+        # ------------------------------------------------
+        # Obtenemos todos los nodos alcanzables
+        # ------------------------------------------------
+        reachable = [node for node, d in dist.items() if d != float("inf") and node != start_id]
+
+        if reachable:
+            path = [start_id] + sorted(reachable, key=lambda n: dist[n])
         else:
-            self.log("Invalid mode specified.")
-            return
+            path = [start_id]
 
-        self.follow_route()
+        self.visited_stars = path
+        self.current_path = path
+        self.logs.append(f"Route calculated (max stars): {path}")
+
+        # ------------------------------------------------
+        # Simulamos el recorrido
+        # ------------------------------------------------
+        for star_id in path:
+            star = self.graph.get_star(star_id)
+            if not star:
+                continue
+
+            self.donkey.energy -= 5
+            self.donkey.grass_kg -= 1
+            if self.donkey.energy <= 0 or self.donkey.grass_kg <= 0:
+                self.donkey.die()
+                self.logs.append("💀 Donkey died during the mission.")
+                break
+
+        self.donkey.current_star = self.graph.get_star(path[-1]) if path else self.graph.get_star(start_id)
+        self.logs.append("Simulation finished.")
+
+        # ------------------------------------------------
+        # Mostramos la ruta en el mapa (si hay interfaz)
+        # ------------------------------------------------
+        if hasattr(self, "canvas") and self.current_path:
+            self.canvas.draw_route(self.current_path)
+
+        return self.generate_report()
+
+
 
     def stop_simulation(self):
         """Stops the simulation."""
@@ -168,7 +197,7 @@ class Simulator:
             "final_status": self.donkey.to_dict(),
             "log": self.logs
         }
-        self.log("=== Simulation Report ===")
+        self.logs.append("=== Simulation Report ===")
         for key, value in report.items():
             self.log(f"{key}: {value}")
         return report

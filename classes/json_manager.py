@@ -10,7 +10,8 @@ class JsonManager:
     Keeps the file synchronized with any runtime modifications.
     """
 
-    def __init__(self):
+    def __init__(self, graph=None):
+        self.graph = graph
         self.file_path = None
 
     # -------------------------------------------------
@@ -19,7 +20,7 @@ class JsonManager:
     def load_json(self):
         """
         Opens a file dialog for the user to select a JSON file,
-        reads it, builds the graph and donkey, and returns both.
+        reads it, fills the existing graph, and returns constellations.
         """
         self.file_path = filedialog.askopenfilename(
             title="Select constellation JSON file",
@@ -28,16 +29,16 @@ class JsonManager:
 
         if not self.file_path:
             print("No file selected.")
-            return None, None
+            return []
 
         with open(self.file_path, "r", encoding="utf-8") as f:
             data = json.load(f)
 
-        from .graph import Graph
-        graph = Graph()
-
+        constellations = []
         for c in data.get("constellations", []):
             const = Constellation(c["name"], c.get("color", "#FFFFFF"))
+
+            # Crear estrellas
             for s in c.get("starts", []):
                 star = Star(
                     s["id"], s["label"], s["coordenates"]["x"], s["coordenates"]["y"],
@@ -48,9 +49,22 @@ class JsonManager:
                     energy_cost=s.get("amountOfEnergy", 0)
                 )
                 const.add_star(star)
-            for e in c.get("edges", []):
-                const.add_edge(*e)
-            graph.add_constellation(const)
+                if hasattr(self, "graph") and self.graph:
+                    self.graph.add_star(star)
+
+            # Crear conexiones (edges) desde linkedTo
+            if hasattr(self, "graph") and self.graph:
+                for s in c.get("starts", []):
+                    links = s.get("linkedTo", [])
+                    for link in links:
+                        origin_id = s["id"]
+                        dest_id = link["starId"]
+                        distance = float(link["distance"])
+                        # Solo agregamos si ambos nodos existen
+                        if self.graph.get_star(origin_id) and self.graph.get_star(dest_id):
+                            self.graph.add_edge(origin_id, dest_id, distance)
+
+            constellations.append(const)
 
         from .donkey import Donkey
         burro = Donkey(
@@ -59,7 +73,20 @@ class JsonManager:
             grass_kg=data.get("pasto", 0)
         )
 
-        return graph, burro
+        self.burro = burro
+
+        # --- Verificación opcional ---
+        if hasattr(self, "graph") and self.graph:
+            print("=== Graph Loaded ===")
+            for node_id, node in self.graph.nodes.items():
+                print(f"Star {node_id}: connected to {list(node.connections.keys())}")
+
+        print("=== Graph Loaded ===")
+        for node_id, node in self.graph.nodes.items():
+            print(f"Star {node_id} connected to: {list(node.connections.keys())}")
+        return constellations
+
+
 
 
     def save_json(self, graph):

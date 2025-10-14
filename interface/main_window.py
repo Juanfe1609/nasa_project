@@ -103,7 +103,9 @@ class MainWindow(tk.Tk):
         start_id = list(self.graph.nodes.keys())[0]
         self.simulator.start_simulation(start_id, mode="max_stars")
 
-        
+        # Mostrar la ruta en el canvas
+        self.canvas.draw_route(self.simulator.current_path)
+
         report_data = self.simulator.generate_report()
         FinalReport(self, report_data)
 
@@ -116,9 +118,9 @@ class MainWindow(tk.Tk):
             messagebox.showinfo("Simulation", "Simulation stopped.")
 
     def update_status(self):
-        """Refreshes UI with the donkey’s state."""
-        if not self.donkey:
+        if not self.donkey or not self.controls:
             return
 
-        self.health_label.config(text=f"Health: {self.donkey.health}")
-        self.energy_label.config(text=f"Energy: {self.donkey.energy:.1f}%")
+        self.controls.health_var.set(self.donkey.health)
+        self.controls.energy_var.set(self.donkey.energy)
+        self.controls.grass_var.set(self.donkey.grass_kg)

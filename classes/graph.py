@@ -16,6 +16,13 @@ class Graph:
     # -----------------------------
     #  Add / Remove elements
     # -----------------------------
+    def add_star(self, star):
+        """
+        Adds a star (node) to the graph.
+        Each star is stored in the nodes dictionary using its ID as the key.
+        """
+        self.nodes[star.id] = star
+        
     def add_constellation(self, constellation):
         """Adds a new constellation to the graph."""
         if isinstance(constellation, Constellation):
