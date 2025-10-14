@@ -2,6 +2,7 @@ import json
 from tkinter import filedialog
 from .constellation import Constellation
 from .star import Star
+from .donkey import Donkey
 
 class JsonManager:
     """
@@ -18,7 +19,7 @@ class JsonManager:
     def load_json(self):
         """
         Opens a file dialog for the user to select a JSON file,
-        reads it, and returns a list of Constellation objects.
+        reads it, builds the graph and donkey, and returns both.
         """
         self.file_path = filedialog.askopenfilename(
             title="Select constellation JSON file",
@@ -27,29 +28,39 @@ class JsonManager:
 
         if not self.file_path:
             print("No file selected.")
-            return []
+            return None, None
 
         with open(self.file_path, "r", encoding="utf-8") as f:
             data = json.load(f)
 
-        constellations = []
+        from .graph import Graph
+        graph = Graph()
+
         for c in data.get("constellations", []):
-            const = Constellation(c["name"], c["color"])
-            for s in c.get("stars", []):
+            const = Constellation(c["name"], c.get("color", "#FFFFFF"))
+            for s in c.get("starts", []):
                 star = Star(
-                    s["id"], s["name"], s["x"], s["y"],
+                    s["id"], s["label"], s["coordenates"]["x"], s["coordenates"]["y"],
                     galaxy=s.get("galaxy"),
-                    is_hypergiant=s.get("is_hypergiant", False),
-                    life_delta=s.get("life_delta", 0),
-                    investigation_time=s.get("investigation_time", 0),
-                    energy_cost=s.get("energy_cost", 0)
+                    is_hypergiant=s.get("hypergiant", False),
+                    life_delta=s.get("timeToEat", 0),
+                    investigation_time=s.get("timeToEat", 0),
+                    energy_cost=s.get("amountOfEnergy", 0)
                 )
                 const.add_star(star)
             for e in c.get("edges", []):
                 const.add_edge(*e)
-            constellations.append(const)
+            graph.add_constellation(const)
 
-        return constellations
+        from .donkey import Donkey
+        burro = Donkey(
+            health=data.get("estadoSalud", "good").lower(),
+            energy=data.get("burroenergiaInicial", 100),
+            grass_kg=data.get("pasto", 0)
+        )
+
+        return graph, burro
+
 
     def save_json(self, graph):
         """
